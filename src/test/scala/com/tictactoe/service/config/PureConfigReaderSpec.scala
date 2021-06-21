@@ -1,7 +1,7 @@
 package com.tictactoe.service.config
 
 import com.tictactoe.model.AppConfig
-import com.tictactoe.model.AppConfig.ServerConfig.Timeout.IdleTimeout
+import com.tictactoe.model.AppConfig.ServerConfig.Timeout.{IdleTimeout, ResponseHeaderTimeout}
 import com.tictactoe.model.AppConfig.ServerConfig.{Host, Port}
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -19,7 +19,8 @@ class PureConfigReaderSpec extends AnyFlatSpec with Matchers with EitherValues {
     appConfigResult shouldBe a[AppConfig]
     appConfigResult.server.port shouldBe Port(8080)
     appConfigResult.server.host shouldBe Host("127.0.0.1")
-    appConfigResult.server.timeout.idleTimeout shouldBe IdleTimeout(10.seconds)
+    appConfigResult.server.timeout.idleTimeout shouldBe IdleTimeout(15.seconds)
+    appConfigResult.server.timeout.responseHeaderTimeout shouldBe ResponseHeaderTimeout(10.seconds)
   }
 
   trait Scope {

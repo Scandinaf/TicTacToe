@@ -29,7 +29,7 @@ private[route] object TicTacToeRoutes {
   def apply[F[_] : Concurrent : LogOf](handler: TicTacToeMessageHandler[F]): AuthedRoutes[User, F] =
     AuthedRoutes.of[User, F] {
 
-      case POST -> Root as _ =>
+      case GET -> Root as _ =>
         def buildOutgoingStream(): F[(Queue[F, OutgoingMessage], Stream[F, WebSocketFrame])] =
           for {
             outgoingQueue <- Queue.unbounded[F, OutgoingMessage]

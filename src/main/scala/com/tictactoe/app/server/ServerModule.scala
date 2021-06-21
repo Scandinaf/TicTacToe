@@ -17,6 +17,7 @@ object ServerModule {
     BlazeServerBuilder(blocker.blockingContext)
       .bindHttp(port = config.port.value, host = config.host.value)
       .withIdleTimeout(config.timeout.idleTimeout.value)
+      .withResponseHeaderTimeout(config.timeout.responseHeaderTimeout.value)
       .withHttpApp(routes.orNotFound)
       .resource
 }
