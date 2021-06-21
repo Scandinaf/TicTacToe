@@ -36,7 +36,11 @@ object ApplicationRunner {
 
       val internalAuthMiddleware = SimpleAuthMiddleware()
 
-      ApplicationRoutes(internalAuthMiddleware, ticTacToeMessageHandler)
+      ApplicationRoutes(
+        internalAuthMiddleware,
+        ticTacToeMessageHandler,
+        appConfig.server.timeout.idleTimeout
+      )
     }
     _ <- ServerModule.of(appConfig.server, applicationRoutes, httpServerBlockingContext)
   } yield ()

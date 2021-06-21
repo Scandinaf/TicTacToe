@@ -1,13 +1,16 @@
 package com.tictactoe.app.server.route.ws
 
 import cats.ApplicativeThrow
-import cats.effect.Concurrent
+import cats.effect.concurrent.Ref
+import cats.effect.{Concurrent, Timer}
+import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
 import com.tictactoe.app.json._
 import com.tictactoe.app.ShowOps._
 import com.tictactoe.app.server.handler.TicTacToeMessageHandler
+import com.tictactoe.model.AppConfig.ServerConfig.Timeout.IdleTimeout
 import com.tictactoe.model.Message.OutgoingMessage.Error
 import com.tictactoe.model.Message.OutgoingMessage.Error.{ErrorType, Reason}
 import com.tictactoe.model.Message.{IncomingMessage, OutgoingMessage}
@@ -26,81 +29,104 @@ import org.http4s.websocket.WebSocketFrame.{Close, Text}
 
 private[route] object TicTacToeRoutes {
 
-  def apply[F[_] : Concurrent : LogOf](handler: TicTacToeMessageHandler[F]): AuthedRoutes[User, F] =
+  def apply[F[_] : Concurrent : Timer : LogOf](
+    handler: TicTacToeMessageHandler[F],
+    idleTimeout: IdleTimeout
+  ): AuthedRoutes[User, F] =
     AuthedRoutes.of[User, F] {
 
       case GET -> Root as _ =>
-        def buildOutgoingStream(): F[(Queue[F, OutgoingMessage], Stream[F, WebSocketFrame])] =
-          for {
-            outgoingQueue <- Queue.unbounded[F, OutgoingMessage]
-            outgoingStream: Stream[F, WebSocketFrame] = outgoingQueue.dequeue
-              .map(outgoingMessage => Text(outgoingMessage.asJson.noSpaces))
-          } yield (outgoingQueue, outgoingStream)
+        def buildOutgoingStream(
+          outgoingQueue: Queue[F, WebSocketFrame],
+          messageCounter: Ref[F, Int]
+        ): Stream[F, WebSocketFrame] =
+          outgoingQueue
+            .dequeue
+            .concurrently(
+              Stream.awakeEvery[F](idleTimeout.value)
+                .evalTap(_ =>
+                  for {
+                    messageCount <- messageCounter.getAndSet(0)
+                    _ <- outgoingQueue.offer1(Close()).whenA(messageCount <= 0)
+                  } yield ()
+                )
+            )
 
         def buildIncomingPipe(
-          outgoingQueue: Queue[F, OutgoingMessage]
+          outgoingQueue: Queue[F, WebSocketFrame],
+          messageCounter: Ref[F, Int]
         )(implicit
           logger: Log[F]
-        ): Pipe[F, WebSocketFrame, Unit] =
-          _.evalMap {
+        ): Pipe[F, WebSocketFrame, Unit] = {
 
-            case Text(json, _) =>
-              for {
-                outgoingMessage <-
-                  decode[IncomingMessage](json)
-                    .fold(
-                      circeError => {
-                        val error = Error(
-                          errorType = ErrorType.TransmittedDataError,
-                          reason = Reason(s"Failed to parse transferred data. Transmitted Json - $json"),
-                          messageId = None
-                        )
+          def toTextFrame(outgoingMessage: OutgoingMessage): Text =
+            Text(outgoingMessage.asJson.noSpaces)
 
-                        logger
-                          .error(show"$error", circeError)
-                          .as(error)
-                      },
-                      incomingMessage =>
-                        ApplicativeThrow[F]
-                          .recoverWith(handler.handle(incomingMessage)) {
+          _.evalTap(_ => messageCounter.update(_ + 1))
+            .evalMap {
 
-                            case throwable: Throwable =>
-                              val error = Error(
-                                errorType = ErrorType.InternalError,
-                                reason = Reason(s"During the processing of the message there were problems"),
-                                messageId = incomingMessage.messageId
-                              )
+              case Text(json, _) =>
+                for {
+                  outgoingMessage <-
+                    decode[IncomingMessage](json)
+                      .fold(
+                        circeError => {
+                          val error = Error(
+                            errorType = ErrorType.TransmittedDataError,
+                            reason = Reason(s"Failed to parse transferred data. Transmitted Json - $json"),
+                            messageId = None
+                          )
 
-                              logger
-                                .error(show"$error", throwable)
-                                .as(error)
-                          }
-                    )
-                _ <- outgoingQueue.offer1(outgoingMessage)
-              } yield ()
+                          logger
+                            .error(show"$error", circeError)
+                            .as(error)
+                        },
+                        incomingMessage =>
+                          ApplicativeThrow[F]
+                            .recoverWith(handler.handle(incomingMessage)) {
 
-            case _: Close =>
-              logger.warn("A message was received that the connection was closed")
+                              case throwable: Throwable =>
+                                val error = Error(
+                                  errorType = ErrorType.InternalError,
+                                  reason =
+                                    Reason(s"During the processing of the message there were problems"),
+                                  messageId = incomingMessage.messageId
+                                )
 
-            case unknownFrame =>
-              val error = Error(
-                errorType = ErrorType.TransmittedDataError,
-                reason =
-                  Reason(s"The data transmitted doesn't match the accepted format. Unknown frame - $unknownFrame"),
-                messageId = None
-              )
+                                logger
+                                  .error(show"$error", throwable)
+                                  .as(error)
+                            }
+                      )
+                  _ <- outgoingQueue.offer1(toTextFrame(outgoingMessage))
+                } yield ()
 
-              for {
-                _ <- logger.warn(show"$error")
-                _ <- outgoingQueue.offer1(error)
-              } yield ()
-          }
+              case _: Close =>
+                logger.warn("A message was received that the connection was closed")
+
+              case unknownFrame =>
+                val error = Error(
+                  errorType = ErrorType.TransmittedDataError,
+                  reason =
+                    Reason(s"The data transmitted doesn't match the accepted format. Unknown frame - $unknownFrame"),
+                  messageId = None
+                )
+
+                for {
+                  _ <- logger.warn(show"$error")
+                  _ <- outgoingQueue.offer1(toTextFrame(error))
+                } yield ()
+            }
+        }
 
         for {
           implicit0(logger: Log[F]) <- implicitly[LogOf[F]].apply(this.getClass)
 
-          (outgoingQueue, outgoingStream) <- buildOutgoingStream()
-          incomingPipe = buildIncomingPipe(outgoingQueue)
+          messageCounter <- Ref.of[F, Int](0)
+
+          outgoingQueue <- Queue.unbounded[F, WebSocketFrame]
+          outgoingStream = buildOutgoingStream(outgoingQueue, messageCounter)
+          incomingPipe = buildIncomingPipe(outgoingQueue, messageCounter)
 
           webSocketConnection <-
             WebSocketBuilder[F].build(outgoingStream, incomingPipe, filterPingPongs = false)
