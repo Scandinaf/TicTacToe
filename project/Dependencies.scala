@@ -63,6 +63,18 @@ object Dependencies {
     }
   }
 
+  object Enumeratum {
+
+    val libraries = {
+
+      val version = "1.7.0"
+      val core = "com.beachape" %% "enumeratum" % version
+      val circe = "com.beachape" %% "enumeratum-circe" % version
+
+      Seq(core, circe)
+    }
+  }
+
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.16.0"
   val scalaTest = "org.scalatest" %% "scalatest" % "3.3.0-SNAP3" % Test
   val mockito = "org.mockito" %% "mockito-scala-scalatest" % "1.16.37" % Test
