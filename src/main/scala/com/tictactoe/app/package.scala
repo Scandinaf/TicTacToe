@@ -19,7 +19,7 @@ package object app {
            |-------------------->
            |-------------------->
            |-------------------->
-           |${req.httpVersion} ${req.method} ${req.uri} ${req.showHeaders}"""
+           |${req.httpVersion} ${req.method} ${req.uri} $showHeaders"""
           .stripMargin
     }
   }

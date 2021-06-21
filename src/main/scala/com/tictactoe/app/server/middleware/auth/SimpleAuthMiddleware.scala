@@ -31,12 +31,12 @@ class SimpleAuthMiddleware[F[_] : Async : LogOf] extends InternalAuthMiddleware[
               Async[F].delay {
                 for {
                   userIdHeader <- request.headers
-                    .get(HeaderName.user_id)
-                    .toRight(s"Couldn't find an ${HeaderName.user_id.toString()} header")
+                    .get(HeaderName.userId)
+                    .toRight(s"Couldn't find an '${HeaderName.userId}' header")
                   userId <-
                     Either.catchOnly[NumberFormatException](userIdHeader.value.toLong)
                       .leftMap(_ =>
-                        s"The passed header value ${HeaderName.user_id} has invalid type, a numeric value is expected."
+                        s"The passed header value '${HeaderName.userId}' has invalid type, a numeric value is expected."
                       )
                 } yield SimpleUser(id = UserId(userId))
               }
@@ -65,9 +65,9 @@ class SimpleAuthMiddleware[F[_] : Async : LogOf] extends InternalAuthMiddleware[
 
 object SimpleAuthMiddleware {
 
-  object HeaderName extends Enumeration {
+  object HeaderName {
 
-    val user_id: CaseInsensitiveString = Value.toString.ci
+    val userId: CaseInsensitiveString = "UserId".ci
   }
 
   def apply[F[_] : Async : LogOf](): SimpleAuthMiddleware[F] =

@@ -20,7 +20,7 @@ class SimpleAuthMiddlewareSpec extends AnyFlatSpec with Matchers {
       uri = uri"/welcome",
       method = Method.GET,
       routes = routes,
-      headers = Headers(List(Header(HeaderName.user_id.value, "256")))
+      headers = Headers(List(Header(HeaderName.userId.value, "256")))
     ).unsafeRunSync()
 
     response.status shouldBe Ok
@@ -40,7 +40,7 @@ class SimpleAuthMiddlewareSpec extends AnyFlatSpec with Matchers {
     response.status shouldBe BadRequest
     response.bodyText.compile
       .string
-      .unsafeRunSync() shouldBe s"Couldn't find an ${HeaderName.user_id} header"
+      .unsafeRunSync() shouldBe s"Couldn't find an '${HeaderName.userId}' header"
   }
 
   it should "return badRequest if header has the wrong type" in new Scope {
@@ -49,13 +49,13 @@ class SimpleAuthMiddlewareSpec extends AnyFlatSpec with Matchers {
       uri = uri"/welcome",
       method = Method.GET,
       routes = routes,
-      headers = Headers(List(Header(HeaderName.user_id.value, "fake_text")))
+      headers = Headers(List(Header(HeaderName.userId.value, "fake_text")))
     ).unsafeRunSync()
 
     response.status shouldBe BadRequest
     response.bodyText.compile
       .string
-      .unsafeRunSync() shouldBe s"The passed header value ${HeaderName.user_id} has invalid type, a numeric value is expected."
+      .unsafeRunSync() shouldBe s"The passed header value '${HeaderName.userId}' has invalid type, a numeric value is expected."
   }
 
   trait Scope extends RoutesBaseScope with TestImplicits {
