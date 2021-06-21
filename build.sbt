@@ -17,6 +17,7 @@ lazy val root = project
         Http4s.libraries ++
         Fs2.libraries ++
         Circe.libraries ++
+        Enumeratum.libraries ++
         Logging.libraries ++
         Seq(
           pureConfig,

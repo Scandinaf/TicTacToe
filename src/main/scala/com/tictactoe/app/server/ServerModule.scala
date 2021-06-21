@@ -14,8 +14,9 @@ object ServerModule {
     routes: HttpRoutes[F],
     blocker: Blocker
   ): Resource[F, Server[F]] =
-    BlazeServerBuilder[F](blocker.blockingContext)
+    BlazeServerBuilder(blocker.blockingContext)
       .bindHttp(port = config.port.value, host = config.host.value)
+      .withIdleTimeout(config.timeout.idleTimeout.value)
       .withHttpApp(routes.orNotFound)
       .resource
 }
