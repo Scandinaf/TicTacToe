@@ -42,7 +42,7 @@ object Message {
         final case object TransmittedDataError extends ErrorType
         final case object InternalError extends ErrorType
 
-        val values = findValues
+        val values: IndexedSeq[ErrorType] = findValues
       }
     }
   }

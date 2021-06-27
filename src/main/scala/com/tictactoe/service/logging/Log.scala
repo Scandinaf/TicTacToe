@@ -23,37 +23,37 @@ object Log {
   def apply[F[_] : Sync](logger: Logger): Log[F] =
     new Log[F] {
 
-      def debug(msg: => String) =
+      def debug(msg: => String): F[Unit] =
         Sync[F].delay {
           if (logger.isDebugEnabled)
             logger.debug(msg)
         }
 
-      def info(msg: => String) =
+      def info(msg: => String): F[Unit] =
         Sync[F].delay {
           if (logger.isInfoEnabled)
             logger.info(msg)
         }
 
-      def warn(msg: => String) =
+      def warn(msg: => String): F[Unit] =
         Sync[F].delay {
           if (logger.isWarnEnabled)
             logger.warn(msg)
         }
 
-      def warn(msg: => String, cause: Throwable) =
+      def warn(msg: => String, cause: Throwable): F[Unit] =
         Sync[F].delay {
           if (logger.isWarnEnabled)
             logger.warn(msg, cause)
         }
 
-      def error(msg: => String) =
+      def error(msg: => String): F[Unit] =
         Sync[F].delay {
           if (logger.isErrorEnabled)
             logger.error(msg)
         }
 
-      def error(msg: => String, cause: Throwable) =
+      def error(msg: => String, cause: Throwable): F[Unit] =
         Sync[F].delay {
           if (logger.isErrorEnabled)
             logger.error(msg, cause)

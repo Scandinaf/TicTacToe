@@ -4,18 +4,19 @@ object Dependencies {
 
   object Cats {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val core = "org.typelevel" %% "cats-core" % "2.6.1"
       val effect = "org.typelevel" %% "cats-effect" % "2.5.1"
+      val free = "org.typelevel" %% "cats-free" % "2.6.1"
 
-      Seq(core, effect)
+      Seq(core, effect, free)
     }
   }
 
   object Http4s {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val version = "0.21.24"
       val dsl = "org.http4s" %% "http4s-dsl" % version
@@ -27,7 +28,7 @@ object Dependencies {
 
   object Fs2 {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val version = "2.5.6"
       val core = "co.fs2" %% "fs2-core" % version
@@ -40,7 +41,7 @@ object Dependencies {
 
   object Logging {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val slf4j = "org.slf4j" % "slf4j-api" % "2.0.0-alpha1"
       val logbackClassic = "ch.qos.logback" % "logback-classic" % "1.3.0-alpha5"
@@ -51,7 +52,7 @@ object Dependencies {
 
   object Circe {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val version = "0.14.1"
       val core = "io.circe" %% "circe-core" % version
@@ -65,7 +66,7 @@ object Dependencies {
 
   object Enumeratum {
 
-    val libraries = {
+    val libraries: Seq[ModuleID] = {
 
       val version = "1.7.0"
       val core = "com.beachape" %% "enumeratum" % version

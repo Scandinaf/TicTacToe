@@ -8,7 +8,10 @@ final case class GameRules(
   winningCombinationLength: WinningCombinationLength
 ) {
 
-  val finalPlaygroundSize = columnCount.value * rowCount.value
+  val finalPlaygroundSize: Int = columnCount.value * rowCount.value
+  val determineWinnerTurnNumber: Int = (winningCombinationLength.value * 2) - 1
+  val adjacentElementNumber: Int = winningCombinationLength.value - 1
+  val offsets: List[Int] = (1 until winningCombinationLength.value).toList
 }
 
 object GameRules {
