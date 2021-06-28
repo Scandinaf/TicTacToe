@@ -1,8 +1,8 @@
 package com.tictactoe.model
 
+import com.tictactoe.model.Message.OutgoingMessage
 import com.tictactoe.model.Session.SessionId
 import fs2.concurrent.Queue
-import org.http4s.websocket.WebSocketFrame
 
 sealed trait Session[Context] {
 
@@ -25,6 +25,6 @@ object Session {
 
   object WsSession {
 
-    final case class Context[F[_]](outgoingQueue: Queue[F, WebSocketFrame])
+    final case class Context[F[_]](outgoingQueue: Queue[F, OutgoingMessage])
   }
 }

@@ -3,16 +3,16 @@ package com.tictactoe.service.session
 import cats.effect.IO
 import cats.effect.concurrent.Ref
 import cats.syntax.either._
+import cats.syntax.option._
+import com.tictactoe.model.Message.OutgoingMessage
 import com.tictactoe.model.Session.{SessionId, WsSession}
 import com.tictactoe.model.User.{SimpleUser, UserId}
+import com.tictactoe.service.session.exception.SessionAlreadyOpenedException
 import com.tictactoe.storage.session.WsSessionStorage
 import fs2.concurrent.Queue
-import org.http4s.websocket.WebSocketFrame
 import org.mockito.MockitoSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import cats.syntax.option._
-import com.tictactoe.service.session.exception.SessionAlreadyOpenedException
 
 class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
 
@@ -73,7 +73,7 @@ class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
 
     val session: WsSession[IO] = {
 
-      val outgoingQueue = mock[Queue[IO, WebSocketFrame]]
+      val outgoingQueue = mock[Queue[IO, OutgoingMessage]]
 
       WsSession(
         id = SessionId("session_id"),

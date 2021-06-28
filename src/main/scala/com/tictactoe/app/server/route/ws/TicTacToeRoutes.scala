@@ -37,31 +37,31 @@ private[route] object TicTacToeRoutes {
 
       case GET -> Root as _ =>
         def buildOutgoingStream(
-          outgoingQueue: Queue[F, WebSocketFrame],
+          outgoingWebSocketFrameQueue: Queue[F, WebSocketFrame],
+          outgoingMessageQueue: Queue[F, OutgoingMessage],
           messageCounter: Ref[F, Int]
         ): Stream[F, WebSocketFrame] =
-          outgoingQueue
+          outgoingWebSocketFrameQueue
             .dequeue
-            .concurrently(
+            .merge(
+              outgoingMessageQueue.dequeue
+                .map(outgoingMessage => Text(outgoingMessage.asJson.noSpaces))
+            ).concurrently(
               Stream.awakeEvery[F](idleTimeout.value)
                 .evalTap(_ =>
                   for {
                     messageCount <- messageCounter.getAndSet(0)
-                    _ <- outgoingQueue.offer1(Close()).whenA(messageCount <= 0)
+                    _ <- outgoingWebSocketFrameQueue.offer1(Close()).whenA(messageCount <= 0)
                   } yield ()
                 )
             )
 
         def buildIncomingPipe(
-          outgoingQueue: Queue[F, WebSocketFrame],
+          outgoingMessageQueue: Queue[F, OutgoingMessage],
           messageCounter: Ref[F, Int]
         )(implicit
           logger: Log[F]
-        ): Pipe[F, WebSocketFrame, Unit] = {
-
-          def toTextFrame(outgoingMessage: OutgoingMessage): Text =
-            Text(outgoingMessage.asJson.noSpaces)
-
+        ): Pipe[F, WebSocketFrame, Unit] =
           _.evalTap(_ => messageCounter.update(_ + 1))
             .evalMap {
 
@@ -98,7 +98,7 @@ private[route] object TicTacToeRoutes {
                                   .as(error)
                             }
                       )
-                  _ <- outgoingQueue.offer1(toTextFrame(outgoingMessage))
+                  _ <- outgoingMessageQueue.offer1(outgoingMessage)
                 } yield ()
 
               case _: Close =>
@@ -114,19 +114,20 @@ private[route] object TicTacToeRoutes {
 
                 for {
                   _ <- logger.warn(show"$error")
-                  _ <- outgoingQueue.offer1(toTextFrame(error))
+                  _ <- outgoingMessageQueue.offer1(error)
                 } yield ()
             }
-        }
 
         for {
           implicit0(logger: Log[F]) <- implicitly[LogOf[F]].apply(this.getClass)
 
           messageCounter <- Ref.of[F, Int](0)
 
-          outgoingQueue <- Queue.unbounded[F, WebSocketFrame]
-          outgoingStream = buildOutgoingStream(outgoingQueue, messageCounter)
-          incomingPipe = buildIncomingPipe(outgoingQueue, messageCounter)
+          outgoingWebSocketFrameQueue <- Queue.unbounded[F, WebSocketFrame]
+          outgoingMessageQueue <- Queue.unbounded[F, OutgoingMessage]
+          outgoingStream =
+            buildOutgoingStream(outgoingWebSocketFrameQueue, outgoingMessageQueue, messageCounter)
+          incomingPipe = buildIncomingPipe(outgoingMessageQueue, messageCounter)
 
           webSocketConnection <-
             WebSocketBuilder[F].build(outgoingStream, incomingPipe, filterPingPongs = false)
