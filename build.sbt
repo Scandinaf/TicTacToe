@@ -21,6 +21,7 @@ lazy val root = project
         Logging.libraries ++
         Seq(
           pureConfig,
+          scalaUuid,
           scalaTest,
           mockito
         )
