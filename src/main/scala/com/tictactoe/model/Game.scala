@@ -17,12 +17,12 @@ object Game {
   final case class GameId(value: String) extends AnyVal
 
   final case class ClassicGame[F[_]](
-                                      id: GameId,
-                                      status: GameStatus,
-                                      player1: Deferred[F, SessionId],
-                                      gameEngine: ClassicTicTacToe[F],
-                                      player2: Deferred[F, SessionId]
-                                    ) extends Game
+    id: GameId,
+    status: GameStatus,
+    player1: Deferred[F, SessionId],
+    gameEngine: ClassicTicTacToe[F],
+    player2: Deferred[F, SessionId]
+  ) extends Game
 
   object ClassicGame {
 

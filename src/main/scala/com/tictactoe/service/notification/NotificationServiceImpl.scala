@@ -11,15 +11,15 @@ import cats.syntax.traverse._
 import com.tictactoe.storage.session.SessionStorage
 
 class NotificationServiceImpl[F[_] : Monad](
-                                             sessionStorage: SessionStorage[F, WsSession[F]],
-                                             gameStorage: GameStorage[F, ClassicGame[F]]
-                                           ) extends NotificationService[F] {
+  sessionStorage: SessionStorage[F, WsSession[F]],
+  gameStorage: GameStorage[F, ClassicGame[F]]
+) extends NotificationService[F] {
 
   override def notify(
-                       initiator: Session.SessionId,
-                       gameId: GameId,
-                       message: Message.OutgoingMessage
-                     ): F[Unit] = {
+    initiator: Session.SessionId,
+    gameId: GameId,
+    message: Message.OutgoingMessage
+  ): F[Unit] = {
     for {
       maybeGame <- gameStorage.get(gameId)
       maybeSessionId <- maybeGame.traverse(game => {

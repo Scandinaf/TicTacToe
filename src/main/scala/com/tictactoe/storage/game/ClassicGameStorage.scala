@@ -8,8 +8,8 @@ import cats.syntax.traverse._
 import com.tictactoe.model.Game.{ClassicGame, GameId}
 
 class ClassicGameStorage[F[_] : Sync](
-                                       localStorage: Ref[F, Map[GameId, Ref[F, ClassicGame[F]]]]
-                                     ) extends GameStorage[F, ClassicGame[F]] {
+  localStorage: Ref[F, Map[GameId, Ref[F, ClassicGame[F]]]]
+) extends GameStorage[F, ClassicGame[F]] {
 
   override def put(game: ClassicGame[F]): F[Unit] =
     for {

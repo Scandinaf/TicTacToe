@@ -13,11 +13,17 @@ import com.tictactoe.model.Session.SessionId
 import com.tictactoe.model.{Game, Session}
 import com.tictactoe.service.game.GameService
 import com.tictactoe.service.game.classic.model.Position
-import com.tictactoe.service.game.exception.{AwaitingPlayerException, GameNotFoundException, GameServiceException, UnableConnectToGameException}
+import com.tictactoe.service.game.exception.{
+  AwaitingPlayerException,
+  GameNotFoundException,
+  GameServiceException,
+  UnableConnectToGameException
+}
 import com.tictactoe.storage.game.ClassicGameStorage
 import io.jvm.uuid._
 
-class ClassicGameService[F[_] : Concurrent](classicGameStorage: ClassicGameStorage[F]) extends GameService[F] {
+class ClassicGameService[F[_] : Concurrent](classicGameStorage: ClassicGameStorage[F])
+  extends GameService[F] {
 
   override def createGame(sessionId: Session.SessionId): F[Game] =
     for {
@@ -52,21 +58,24 @@ class ClassicGameService[F[_] : Concurrent](classicGameStorage: ClassicGameStora
         })
     } yield result.flatten
 
-  override def makeTurn(gameId: GameId, sessionId: SessionId, position: Position): F[Either[GameServiceException, Unit]] =
+  override def makeTurn(
+    gameId: GameId,
+    sessionId: SessionId,
+    position: Position
+  ): F[Either[GameServiceException, Unit]] =
     for {
       maybeGame <- classicGameStorage.get(gameId)
       result <- maybeGame.toRight(GameNotFoundException(gameId))
-        .flatMap(
-          game =>
-            if (game.status == AwaitingPlayer)
-              AwaitingPlayerException(gameId).asLeft
-            else game.asRight
+        .flatMap(game =>
+          if (game.status == AwaitingPlayer)
+            AwaitingPlayerException(gameId).asLeft
+          else game.asRight
         ).traverse(game => {
 
-        for {
-          newGame <- game.gameEngine.makeTurn(position)
-        } yield newGame.map(f => game.copy(gameEngine = f)).leftMap(_ => GameNotFoundException(gameId))
-      })
+          for {
+            newGame <- game.gameEngine.makeTurn(position)
+          } yield newGame.map(f => game.copy(gameEngine = f)).leftMap(_ => GameNotFoundException(gameId))
+        })
       result <- result.flatten.traverse(game => {
         classicGameStorage.put(game)
       })

@@ -7,8 +7,8 @@ import com.tictactoe.model.Session.SessionId
 trait NotificationService[F[_]] {
 
   def notify(
-              initiator: SessionId,
-              gameId: GameId,
-              message: OutgoingMessage
-            ): F[Unit]
+    initiator: SessionId,
+    gameId: GameId,
+    message: OutgoingMessage
+  ): F[Unit]
 }

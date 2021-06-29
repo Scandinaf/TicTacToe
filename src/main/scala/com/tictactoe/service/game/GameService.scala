@@ -12,7 +12,11 @@ trait GameService[F[_]] {
 
   def joinGame(gameId: GameId, sessionId: SessionId): F[Either[GameServiceException, Unit]]
 
-  def makeTurn(gameId: GameId, sessionId: SessionId, position: Position): F[Either[GameServiceException, Unit]]
+  def makeTurn(
+    gameId: GameId,
+    sessionId: SessionId,
+    position: Position
+  ): F[Either[GameServiceException, Unit]]
 
   def closeGame(gameId: GameId): F[Unit]
 }

@@ -25,7 +25,11 @@ object Message {
 
     final case class JoinGame(messageId: Option[UUID], gameId: GameId) extends IncomingMessage
 
-    final case class MakeTurn(messageId: Option[UUID], gameId: GameId, position: Position) extends IncomingMessage
+    final case class MakeTurn(
+      messageId: Option[UUID],
+      gameId: GameId,
+      position: Position
+    ) extends IncomingMessage
   }
 
   sealed trait OutgoingMessage extends Message
@@ -38,7 +42,11 @@ object Message {
 
     final case class JoinedGame(messageId: Option[UUID], gameId: GameId) extends OutgoingMessage
 
-    final case class MadeTurn(messageId: Option[UUID], gameId: GameId, position: Position) extends OutgoingMessage
+    final case class MadeTurn(
+      messageId: Option[UUID],
+      gameId: GameId,
+      position: Position
+    ) extends OutgoingMessage
 
     final case class Error(
       errorType: ErrorType,

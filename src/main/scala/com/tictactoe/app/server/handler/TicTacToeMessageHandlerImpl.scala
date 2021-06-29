@@ -14,13 +14,16 @@ import com.tictactoe.service.notification.NotificationService
 import com.tictactoe.service.pingpong.PingPongService
 
 class TicTacToeMessageHandlerImpl[F[+_] : Monad](
-                                                  pingPongService: PingPongService[F],
-                                                  classicGameService: GameService[F],
-                                                  notificationService: NotificationService[F]
-                                                )
-  extends TicTacToeMessageHandler[F] {
+  pingPongService: PingPongService[F],
+  classicGameService: GameService[F],
+  notificationService: NotificationService[F]
+) extends TicTacToeMessageHandler[F] {
 
-  override def handle(incomingMessage: Message.IncomingMessage)(implicit sessionId: SessionId): F[OutgoingMessage] =
+  override def handle(
+    incomingMessage: Message.IncomingMessage
+  )(implicit
+    sessionId: SessionId
+  ): F[OutgoingMessage] =
     incomingMessage match {
 
       case ping: Ping =>
@@ -37,7 +40,6 @@ class TicTacToeMessageHandlerImpl[F[+_] : Monad](
           result <- joinGameResult match {
 
             case Left(gameServiceException) =>
-
               Applicative[F].pure(
                 Error(
                   errorType = ErrorType.GameError,
@@ -54,7 +56,6 @@ class TicTacToeMessageHandlerImpl[F[+_] : Monad](
         } yield result
 
       case MakeTurn(messageId, gameId, position) =>
-
         classicGameService.makeTurn(gameId, sessionId, position).flatMap {
 
           case Left(gameServiceException) =>
@@ -77,9 +78,9 @@ class TicTacToeMessageHandlerImpl[F[+_] : Monad](
 object TicTacToeMessageHandlerImpl {
 
   def apply[F[+_] : Monad](
-                            pingPongService: PingPongService[F],
-                            classicGameService: GameService[F],
-                            notificationService: NotificationService[F]
-                          ): TicTacToeMessageHandlerImpl[F] =
+    pingPongService: PingPongService[F],
+    classicGameService: GameService[F],
+    notificationService: NotificationService[F]
+  ): TicTacToeMessageHandlerImpl[F] =
     new TicTacToeMessageHandlerImpl(pingPongService, classicGameService, notificationService)
 }

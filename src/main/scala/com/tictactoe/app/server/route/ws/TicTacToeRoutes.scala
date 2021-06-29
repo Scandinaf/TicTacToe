@@ -34,40 +34,40 @@ import org.http4s.websocket.WebSocketFrame.{Close, Text}
 private[route] object TicTacToeRoutes {
 
   def apply[F[_] : Concurrent : Timer : LogOf](
-                                                handler: TicTacToeMessageHandler[F],
-                                                sessionService: SessionService[F, WsSession[F]],
-                                                idleTimeout: IdleTimeout
-                                              ): AuthedRoutes[User, F] =
+    handler: TicTacToeMessageHandler[F],
+    sessionService: SessionService[F, WsSession[F]],
+    idleTimeout: IdleTimeout
+  ): AuthedRoutes[User, F] =
     AuthedRoutes.of[User, F] {
 
       case GET -> Root as user =>
         def buildOutgoingStream(
-                                 outgoingWebSocketFrameQueue: Queue[F, WebSocketFrame],
-                                 outgoingMessageQueue: Queue[F, OutgoingMessage],
-                                 messageCounter: Ref[F, Int]
-                               ): Stream[F, WebSocketFrame] =
+          outgoingWebSocketFrameQueue: Queue[F, WebSocketFrame],
+          outgoingMessageQueue: Queue[F, OutgoingMessage],
+          messageCounter: Ref[F, Int]
+        ): Stream[F, WebSocketFrame] =
           outgoingWebSocketFrameQueue
             .dequeue
             .merge(
               outgoingMessageQueue.dequeue
                 .map(outgoingMessage => Text(outgoingMessage.asJson.noSpaces))
             ).concurrently(
-            Stream.awakeEvery[F](idleTimeout.value)
-              .evalTap(_ =>
-                for {
-                  messageCount <- messageCounter.getAndSet(0)
-                  _ <- outgoingWebSocketFrameQueue.offer1(Close()).whenA(messageCount <= 0)
-                } yield ()
-              )
-          )
+              Stream.awakeEvery[F](idleTimeout.value)
+                .evalTap(_ =>
+                  for {
+                    messageCount <- messageCounter.getAndSet(0)
+                    _ <- outgoingWebSocketFrameQueue.offer1(Close()).whenA(messageCount <= 0)
+                  } yield ()
+                )
+            )
 
         def buildIncomingPipe(
-                               outgoingMessageQueue: Queue[F, OutgoingMessage],
-                               messageCounter: Ref[F, Int]
-                             )(implicit
-                               logger: Log[F],
-                               sessionId: SessionId
-                             ): Pipe[F, WebSocketFrame, Unit] =
+          outgoingMessageQueue: Queue[F, OutgoingMessage],
+          messageCounter: Ref[F, Int]
+        )(implicit
+          logger: Log[F],
+          sessionId: SessionId
+        ): Pipe[F, WebSocketFrame, Unit] =
           _.evalTap(_ => messageCounter.update(_ + 1))
             .evalMap {
 
@@ -135,7 +135,7 @@ private[route] object TicTacToeRoutes {
           outgoingWebSocketFrameQueue <- Queue.unbounded[F, WebSocketFrame]
           outgoingMessageQueue <- Queue.unbounded[F, OutgoingMessage]
 
-          implicit0(sessionId : SessionId) = SessionId(UUID.random.string)
+          implicit0(sessionId: SessionId) = SessionId(UUID.random.string)
           session = WsSession(
             id = sessionId,
             user = user,
