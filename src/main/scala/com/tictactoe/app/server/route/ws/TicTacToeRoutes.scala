@@ -1,19 +1,18 @@
 package com.tictactoe.app.server.route.ws
 
-import cats.ApplicativeThrow
 import cats.effect.concurrent.Ref
 import cats.effect.{Concurrent, Timer}
 import cats.syntax.applicative._
+import cats.syntax.apply._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.syntax.monadError._
 import cats.syntax.show._
-import com.tictactoe.app.json._
-import com.tictactoe.app.ShowOps._
+import cats.{Applicative, ApplicativeThrow}
 import com.tictactoe.app.server.handler.TicTacToeMessageHandler
+import com.tictactoe.exception.AppException
+import com.tictactoe.exception.AppException.{ErrorCode, PrettyMessage}
 import com.tictactoe.model.AppConfig.ServerConfig.Timeout.IdleTimeout
 import com.tictactoe.model.Message.OutgoingMessage.Error
-import com.tictactoe.model.Message.OutgoingMessage.Error.{ErrorType, Reason}
 import com.tictactoe.model.Message.{IncomingMessage, OutgoingMessage}
 import com.tictactoe.model.Session.{SessionId, WsSession}
 import com.tictactoe.model.User
@@ -30,12 +29,13 @@ import org.http4s.dsl.io._
 import org.http4s.server.websocket.WebSocketBuilder
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame.{Close, Text}
+import com.tictactoe.app.server.JsonOps._
 
 private[route] object TicTacToeRoutes {
 
   def apply[F[_] : Concurrent : Timer : LogOf](
     handler: TicTacToeMessageHandler[F],
-    sessionService: SessionService[F, WsSession[F]],
+    sessionService: SessionService[F],
     idleTimeout: IdleTimeout
   ): AuthedRoutes[User, F] =
     AuthedRoutes.of[User, F] {
@@ -72,40 +72,47 @@ private[route] object TicTacToeRoutes {
             .evalMap {
 
               case Text(json, _) =>
-                for {
-                  outgoingMessage <-
-                    decode[IncomingMessage](json)
-                      .fold(
-                        circeError => {
-                          val error = Error(
-                            errorType = ErrorType.TransmittedDataError,
-                            reason = Reason(s"Failed to parse transferred data. Transmitted Json - $json"),
-                            messageId = None
-                          )
-
-                          logger
-                            .error(show"$error", circeError)
-                            .as(error)
-                        },
-                        incomingMessage =>
-                          ApplicativeThrow[F]
-                            .recoverWith(handler.handle(incomingMessage)) {
-
-                              case throwable: Throwable =>
-                                val error = Error(
-                                  errorType = ErrorType.InternalError,
-                                  reason =
-                                    Reason(s"During the processing of the message there were problems"),
-                                  messageId = incomingMessage.messageId
-                                )
-
-                                logger
-                                  .error(show"$error", throwable)
-                                  .as(error)
-                            }
+                decode[IncomingMessage](json)
+                  .fold(
+                    circeError => {
+                      val error = Error(
+                        messageId = None,
+                        prettyMessage =
+                          PrettyMessage(s"Failed to parse transferred data. Transmitted Json - $json."),
+                        parameters = Map.empty,
+                        errorCode = ErrorCode.badRequest
                       )
-                  _ <- outgoingMessageQueue.offer1(outgoingMessage)
-                } yield ()
+
+                      logger.error(show"$error", circeError) *>
+                        outgoingMessageQueue.offer1(error).as(())
+                    },
+                    incomingMessage =>
+                      ApplicativeThrow[F]
+                        .handleErrorWith(handler.handle(incomingMessage).as(())) {
+                          case appException: AppException =>
+                            val error = Error(
+                              messageId = incomingMessage.messageId,
+                              prettyMessage = appException.prettyMessage,
+                              parameters = appException.parameters,
+                              errorCode = appException.errorCode
+                            )
+
+                            logger.error(show"$error", appException) *>
+                              outgoingMessageQueue.offer1(error).as(())
+
+                          case throwable: Throwable =>
+                            val error = Error(
+                              messageId = incomingMessage.messageId,
+                              prettyMessage =
+                                PrettyMessage("During the processing of the message there were problems"),
+                              parameters = Map.empty,
+                              errorCode = ErrorCode.internalError
+                            )
+
+                            logger.error(show"$error", throwable) *>
+                              outgoingMessageQueue.offer1(error).as(())
+                        }
+                  )
 
               case _: Close =>
                 for {
@@ -115,10 +122,11 @@ private[route] object TicTacToeRoutes {
 
               case unknownFrame =>
                 val error = Error(
-                  errorType = ErrorType.TransmittedDataError,
-                  reason =
-                    Reason(s"The data transmitted doesn't match the accepted format. Unknown frame - $unknownFrame"),
-                  messageId = None
+                  messageId = None,
+                  prettyMessage =
+                    PrettyMessage(s"The data transmitted doesn't match the accepted format. Unknown frame - $unknownFrame"),
+                  parameters = Map.empty,
+                  errorCode = ErrorCode.badRequest
                 )
 
                 for {
@@ -129,19 +137,19 @@ private[route] object TicTacToeRoutes {
 
         for {
           implicit0(logger: Log[F]) <- implicitly[LogOf[F]].apply(this.getClass)
+          implicit0(sessionId: SessionId) <- Applicative[F].pure(SessionId(UUID.random.string))
 
           messageCounter <- Ref.of[F, Int](0)
 
           outgoingWebSocketFrameQueue <- Queue.unbounded[F, WebSocketFrame]
           outgoingMessageQueue <- Queue.unbounded[F, OutgoingMessage]
 
-          implicit0(sessionId: SessionId) = SessionId(UUID.random.string)
           session = WsSession(
             id = sessionId,
             user = user,
             context = WsSession.Context(outgoingMessageQueue)
           )
-          _ <- sessionService.openSession(session).rethrow
+          _ <- sessionService.openSession(session).rethrowT
 
           outgoingStream =
             buildOutgoingStream(outgoingWebSocketFrameQueue, outgoingMessageQueue, messageCounter)

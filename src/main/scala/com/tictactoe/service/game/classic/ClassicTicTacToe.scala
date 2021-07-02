@@ -1,25 +1,26 @@
 package com.tictactoe.service.game.classic
 
 import cats.Applicative
+import cats.data.EitherT
 import cats.syntax.either._
-import com.tictactoe.service.game.classic.exception.{GameAlreadyFinishedException, GameException}
+import com.tictactoe.model.CellType.EmptyCell
+import com.tictactoe.model.CellType.PlayerCellType.TicCell
+import com.tictactoe.model.Position
+import com.tictactoe.service.game.classic.exception.GameException
+import com.tictactoe.service.game.classic.exception.GameException.GameAlreadyFinishedException
 import com.tictactoe.service.game.classic.freemonad.ClassicTicTacToe._
 import com.tictactoe.service.game.classic.freemonad.PureCompiler.pureCompiler
-import com.tictactoe.service.game.classic.model.CellType.EmptyCell
-import com.tictactoe.service.game.classic.model.CellType.PlayerCellType.TicCell
 import com.tictactoe.service.game.classic.model.GameRules.{ColumnCount, RowCount, WinningCombinationLength}
 import com.tictactoe.service.game.classic.model.GameState._
-import com.tictactoe.service.game.classic.model.{GameRules, GameState, Position}
+import com.tictactoe.service.game.classic.model.{GameRules, GameState}
 
 class ClassicTicTacToe[F[_] : Applicative](
   val rules: GameRules,
   val state: GameState
 ) {
 
-  type Result[A] = Either[GameException, A]
-
-  def makeTurn(position: Position): F[Result[ClassicTicTacToe[F]]] =
-    Applicative[F].pure(
+  def makeTurn(position: Position): EitherT[F, GameException, ClassicTicTacToe[F]] =
+    EitherT.fromEither[F](
       state match {
 
         case activeGame: GameState.ActiveGame =>
@@ -38,8 +39,8 @@ class ClassicTicTacToe[F[_] : Applicative](
                 new ClassicTicTacToe[F](rules, newState)
             }
 
-        case finishedGame: GameState.FinishedGame =>
-          GameAlreadyFinishedException(finishedGame).asLeft
+        case _: GameState.FinishedGame =>
+          GameAlreadyFinishedException.asLeft
       }
     )
 }

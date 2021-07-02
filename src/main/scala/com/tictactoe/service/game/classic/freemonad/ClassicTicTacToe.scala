@@ -2,9 +2,10 @@ package com.tictactoe.service.game.classic.freemonad
 
 import cats.free.Free
 import cats.free.Free.liftF
-import com.tictactoe.service.game.classic.model.CellType.PlayerCellType
+import com.tictactoe.model.CellType.PlayerCellType
+import com.tictactoe.model.Position
+import com.tictactoe.service.game.classic.model.GameState
 import com.tictactoe.service.game.classic.model.GameState.{Playground, TurnNumber, WinningCombination}
-import com.tictactoe.service.game.classic.model.{GameState, Position}
 
 sealed trait ClassicTicTacToe[A]
 

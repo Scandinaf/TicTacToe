@@ -1,9 +1,9 @@
 package com.tictactoe.service.game.classic.freemonad
 
-import com.tictactoe.service.game.classic.CompanionOps.PositionCompanion
-import com.tictactoe.service.game.classic.model.{GameRules, Position}
+import com.tictactoe.model.Position
+import com.tictactoe.model.Position.{Column, Row}
+import com.tictactoe.service.game.classic.model.GameRules
 import com.tictactoe.service.game.classic.model.GameState.{ActiveGame, WinningCombination}
-import com.tictactoe.service.game.classic.model.Position.{Column, Row}
 
 class WinConditionChecker(gameRules: GameRules, activeGame: ActiveGame) {
 

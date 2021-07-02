@@ -1,8 +1,9 @@
-package com.tictactoe.app.json
+package com.tictactoe.app.server
 
 import cats.syntax.option._
+import com.tictactoe.app.server.JsonOps._
+import com.tictactoe.exception.AppException.{ErrorCode, ParameterKey, PrettyMessage}
 import com.tictactoe.model.Message.IncomingMessage.Ping
-import com.tictactoe.model.Message.OutgoingMessage.Error.{ErrorType, Reason}
 import com.tictactoe.model.Message.OutgoingMessage.{Error, Pong}
 import com.tictactoe.model.Message.{IncomingMessage, OutgoingMessage, UUID}
 import io.circe.parser.decode
@@ -32,12 +33,13 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers with EitherValues {
   it should "correctly convert Error entity" in {
     val uuid = UUID("unique identifier")
     val error: OutgoingMessage = Error(
-      errorType = ErrorType.InternalError,
-      reason = Reason(s"Reason"),
-      messageId = uuid.some
+      messageId = uuid.some,
+      prettyMessage = PrettyMessage("Reason"),
+      parameters = Map(ParameterKey.GameId -> "Id"),
+      errorCode = ErrorCode.badRequest
     )
     val result =
-      """{"error_type":"InternalError","reason":"Reason","message_id":"unique identifier","type":"error"}""".stripMargin
+      """{"message_id":"unique identifier","pretty_message":"Reason","parameters":{"GameId":"Id"},"error_code":400,"type":"error"}""".stripMargin
 
     error.asJson.noSpaces shouldBe result
   }

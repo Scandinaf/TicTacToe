@@ -5,39 +5,40 @@ import cats.effect.concurrent.Ref
 import cats.syntax.either._
 import cats.syntax.option._
 import com.tictactoe.model.Message.OutgoingMessage
+import com.tictactoe.model.Session
 import com.tictactoe.model.Session.{SessionId, WsSession}
 import com.tictactoe.model.User.{SimpleUser, UserId}
-import com.tictactoe.service.session.exception.SessionAlreadyOpenedException
-import com.tictactoe.storage.session.WsSessionStorage
+import com.tictactoe.service.session.exception.SessionServiceException.SessionAlreadyExistsException
+import com.tictactoe.storage.session.LocalSessionStorage
 import fs2.concurrent.Queue
 import org.mockito.MockitoSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
+class SessionServiceImplSpec extends AnyFlatSpec with MockitoSugar with Matchers {
 
   "WsSessionService" should "correctly open session" in new Scope {
 
     (
       for {
         service <- serviceIO
-        result <- service.getSession(session.id)
+        result <- service.getSession(session.id).value
         _ = result shouldBe None
-        _ <- service.openSession(session)
-        result <- service.getSession(session.id)
+        _ <- service.openSession(session).rethrowT
+        result <- service.getSession(session.id).value
         _ = result shouldBe session.some
       } yield ()
     ).unsafeRunSync()
   }
 
-  it should "throw SessionAlreadyOpenedException" in new Scope {
+  it should "throw SessionAlreadyExistsException" in new Scope {
 
     (
       for {
         service <- serviceIO
-        _ <- service.openSession(session)
-        result <- service.openSession(session)
-        _ = result shouldBe SessionAlreadyOpenedException(session.id).asLeft
+        _ <- service.openSession(session).rethrowT
+        result <- service.openSession(session).value
+        _ = result shouldBe SessionAlreadyExistsException(session.id).asLeft
       } yield ()
     ).unsafeRunSync()
   }
@@ -47,10 +48,10 @@ class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
     (
       for {
         service <- serviceIO
-        result <- service.getSession(session.id)
+        result <- service.getSession(session.id).value
         _ = result shouldBe None
-        _ <- service.openSession(session)
-        result <- service.getSession(session.id)
+        _ <- service.openSession(session).rethrowT
+        result <- service.getSession(session.id).value
         _ = result shouldBe session.some
       } yield ()
     ).unsafeRunSync()
@@ -61,9 +62,9 @@ class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
     (
       for {
         service <- serviceIO
-        _ <- service.openSession(session)
+        _ <- service.openSession(session).rethrowT
         _ <- service.closeSession(session.id)
-        result <- service.getSession(session.id)
+        result <- service.getSession(session.id).value
         _ = result shouldBe None
       } yield ()
     ).unsafeRunSync()
@@ -81,9 +82,9 @@ class WsSessionServiceSpec extends AnyFlatSpec with MockitoSugar with Matchers {
         context = WsSession.Context[IO](outgoingQueue = outgoingQueue)
       )
     }
-    val serviceIO: IO[WsSessionService[IO]] = for {
-      localStorage <- Ref.of[IO, Map[SessionId, WsSession[IO]]](Map.empty)
-      sessionStorage = WsSessionStorage[IO](localStorage)
-    } yield WsSessionService[IO](sessionStorage)
+    val serviceIO: IO[SessionServiceImpl[IO]] = for {
+      localStorage <- Ref.of[IO, Map[SessionId, Session]](Map.empty)
+      sessionStorage = LocalSessionStorage[IO](localStorage)
+    } yield SessionServiceImpl[IO](sessionStorage)
   }
 }

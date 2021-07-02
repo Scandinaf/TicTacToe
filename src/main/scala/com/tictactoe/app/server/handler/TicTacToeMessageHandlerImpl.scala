@@ -1,19 +1,31 @@
 package com.tictactoe.app.server.handler
 
+import cats.effect.Concurrent
+import cats.effect.concurrent.Deferred
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{Applicative, Monad}
+import com.tictactoe.model.CellType.PlayerCellType
+import com.tictactoe.model.Game.ClassicGame.{GameStatus, PlayerInfo}
+import com.tictactoe.model.Game.{ClassicGame, GameId}
 import com.tictactoe.model.Message
 import com.tictactoe.model.Message.IncomingMessage.{CreateClassicGame, JoinGame, MakeTurn, Ping}
 import com.tictactoe.model.Message.OutgoingMessage
-import com.tictactoe.model.Message.OutgoingMessage.Error.{ErrorType, Reason}
-import com.tictactoe.model.Message.OutgoingMessage.{ClassicGameCreated, Error, JoinedGame, MadeTurn}
+import com.tictactoe.model.Message.OutgoingMessage.GameFinished.WinnerInfo
+import com.tictactoe.model.Message.OutgoingMessage.{
+  ClassicGameCreated,
+  GameFinished,
+  PlayerJoinedToGame,
+  TurnResult
+}
 import com.tictactoe.model.Session.SessionId
 import com.tictactoe.service.game.GameService
+import com.tictactoe.service.game.classic.ClassicTicTacToe
+import com.tictactoe.service.game.classic.model.GameState
 import com.tictactoe.service.notification.NotificationService
 import com.tictactoe.service.pingpong.PingPongService
+import io.jvm.uuid._
 
-class TicTacToeMessageHandlerImpl[F[+_] : Monad](
+class TicTacToeMessageHandlerImpl[F[+_] : Concurrent](
   pingPongService: PingPongService[F],
   classicGameService: GameService[F],
   notificationService: NotificationService[F]
@@ -31,53 +43,53 @@ class TicTacToeMessageHandlerImpl[F[+_] : Monad](
 
       case CreateClassicGame(messageId) =>
         for {
-          game <- classicGameService.createGame(sessionId)
-        } yield ClassicGameCreated(game.id, messageId)
+          player2SessionIdDef <- Deferred.tryable[F, PlayerInfo]
+          player1Info = PlayerInfo(sessionId, PlayerCellType.random())
+          game = ClassicGame[F](
+            id = GameId(UUID.random.string),
+            status = GameStatus.AwaitingConnection,
+            player1 = player1Info,
+            gameEngine = ClassicTicTacToe[F](),
+            player2 = player2SessionIdDef
+          )
+          _ <- classicGameService.createGame(game).rethrowT
+          outgoingMessage = ClassicGameCreated(game.id, messageId, player1Info.cellType)
+          _ <- notificationService.notify(game.id, outgoingMessage)
+        } yield outgoingMessage
 
       case JoinGame(messageId, gameId) =>
         for {
-          joinGameResult <- classicGameService.joinGame(gameId, sessionId)
-          result <- joinGameResult match {
-
-            case Left(gameServiceException) =>
-              Applicative[F].pure(
-                Error(
-                  errorType = ErrorType.GameError,
-                  reason = Reason(gameServiceException.message),
-                  messageId
-                )
-              )
-
-            case Right(_) =>
-              for {
-                _ <- notificationService.notify(sessionId, gameId, JoinedGame(None, gameId))
-              } yield JoinedGame(messageId, gameId)
-          }
-        } yield result
+          playerCellType <- classicGameService.joinGame(gameId, sessionId).rethrowT
+          outgoingMessage = PlayerJoinedToGame(messageId, gameId, playerCellType)
+          _ <- notificationService.notify(gameId, outgoingMessage)
+        } yield outgoingMessage
 
       case MakeTurn(messageId, gameId, position) =>
-        classicGameService.makeTurn(gameId, sessionId, position).flatMap {
+        for {
+          game <- classicGameService.makeTurn(gameId, sessionId, position).rethrowT
+          outgoingMessage = game match {
 
-          case Left(gameServiceException) =>
-            Applicative[F].pure(
-              Error(
-                errorType = ErrorType.GameError,
-                reason = Reason(gameServiceException.message),
-                messageId
-              )
-            )
+            case ClassicGame(_, _, _, gameEngine, _) =>
+              gameEngine.state match {
 
-          case Right(_) =>
-            for {
-              _ <- notificationService.notify(sessionId, gameId, MadeTurn(None, gameId, position))
-            } yield MadeTurn(messageId, gameId, position)
-        }
+                case GameState.ActiveGame(_, _, _) =>
+                  TurnResult(messageId, gameId, position)
+
+                case GameState.FinishedGame(_, turnType, _, winningCombination) =>
+                  val maybeWinnerInfo = winningCombination
+                    .map(winningCombination => WinnerInfo(turnType, winningCombination))
+
+                  GameFinished(messageId, gameId, position, maybeWinnerInfo)
+              }
+          }
+          _ <- notificationService.notify(gameId, outgoingMessage)
+        } yield outgoingMessage
     }
 }
 
 object TicTacToeMessageHandlerImpl {
 
-  def apply[F[+_] : Monad](
+  def apply[F[+_] : Concurrent](
     pingPongService: PingPongService[F],
     classicGameService: GameService[F],
     notificationService: NotificationService[F]

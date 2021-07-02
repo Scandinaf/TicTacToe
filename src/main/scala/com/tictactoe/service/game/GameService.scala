@@ -1,22 +1,26 @@
 package com.tictactoe.service.game
 
-import com.tictactoe.model.Game
+import cats.data.{EitherT, OptionT}
+import com.tictactoe.model.CellType.PlayerCellType
 import com.tictactoe.model.Game.GameId
 import com.tictactoe.model.Session.SessionId
-import com.tictactoe.service.game.classic.model.Position
+import com.tictactoe.model.{Game, Position}
 import com.tictactoe.service.game.exception.GameServiceException
+import com.tictactoe.service.game.exception.GameServiceException.GameAlreadyExistsException
 
 trait GameService[F[_]] {
 
-  def createGame(sessionId: SessionId): F[Game]
+  def createGame(game: Game): EitherT[F, GameAlreadyExistsException, Unit]
 
-  def joinGame(gameId: GameId, sessionId: SessionId): F[Either[GameServiceException, Unit]]
+  def getGame(gameId: GameId): OptionT[F, Game]
+
+  def joinGame(gameId: GameId, sessionId: SessionId): EitherT[F, GameServiceException, PlayerCellType]
 
   def makeTurn(
     gameId: GameId,
     sessionId: SessionId,
     position: Position
-  ): F[Either[GameServiceException, Unit]]
+  ): EitherT[F, GameServiceException, Game]
 
   def closeGame(gameId: GameId): F[Unit]
 }

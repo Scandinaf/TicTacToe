@@ -1,41 +1,50 @@
 package com.tictactoe.service.notification
 
 import cats.Monad
-import com.tictactoe.model.Game.{ClassicGame, GameId}
-import com.tictactoe.model.{Message, Session}
-import com.tictactoe.model.Session.WsSession
-import com.tictactoe.storage.game.GameStorage
-import cats.syntax.flatMap._
+import cats.data.OptionT
+import cats.syntax.apply._
 import cats.syntax.functor._
-import cats.syntax.traverse._
-import com.tictactoe.storage.session.SessionStorage
+import com.tictactoe.model.Game.{ClassicGame, GameId}
+import com.tictactoe.model.Message
+import com.tictactoe.model.Session.{SessionId, WsSession}
+import com.tictactoe.service.game.GameService
+import com.tictactoe.service.session.SessionService
 
-class NotificationServiceImpl[F[_] : Monad](
-  sessionStorage: SessionStorage[F, WsSession[F]],
-  gameStorage: GameStorage[F, ClassicGame[F]]
-) extends NotificationService[F] {
+class NotificationServiceImpl[F[_] : Monad](sessionService: SessionService[F], gameService: GameService[F])
+  extends NotificationService[F] {
 
   override def notify(
-    initiator: Session.SessionId,
     gameId: GameId,
     message: Message.OutgoingMessage
-  ): F[Unit] = {
+  ): F[Unit] =
     for {
-      maybeGame <- gameStorage.get(gameId)
-      maybeSessionId <- maybeGame.traverse(game => {
-        for {
-          player1SessionId <- game.player1.get
-          player2SessionId <- game.player2.get
-        } yield Seq(player1SessionId, player2SessionId).find(_ != initiator)
-      })
-      maybeSession <- maybeSessionId.flatten
-        .traverse(sessionId => {
-          for {
-            maybeSession <- sessionStorage.get(sessionId)
-          } yield maybeSession
-        })
-      _ <- maybeSession.flatten
-        .traverse(session => session.context.outgoingQueue.offer1(message))
+      _ <- gameService
+        .getGame(gameId)
+        .flatMap {
+
+          case classicGame: ClassicGame[F] =>
+            def sendNotification(sessionId: SessionId): OptionT[F, Boolean] =
+              sessionService
+                .getSession(sessionId)
+                .semiflatMap {
+
+                  case wsSession: WsSession[F] =>
+                    wsSession.context.outgoingQueue.offer1(message)
+                }
+
+            sendNotification(classicGame.player1.sessionId) *>
+              OptionT(classicGame.player2.tryGet)
+                .map(_.sessionId)
+                .flatMap(sendNotification)
+        }.value
     } yield ()
-  }
+}
+
+object NotificationServiceImpl {
+
+  def apply[F[_] : Monad](
+    sessionService: SessionService[F],
+    gameService: GameService[F]
+  ): NotificationServiceImpl[F] =
+    new NotificationServiceImpl(sessionService, gameService)
 }

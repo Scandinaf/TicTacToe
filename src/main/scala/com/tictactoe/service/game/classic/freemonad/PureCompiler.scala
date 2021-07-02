@@ -4,16 +4,15 @@ import cats.data.StateT
 import cats.syntax.either._
 import cats.syntax.option._
 import cats.~>
-import com.tictactoe.service.game.classic.CompanionOps._
-import com.tictactoe.service.game.classic.OrderingOps._
-import com.tictactoe.service.game.classic.exception.{
+import com.tictactoe.model.CellType
+import com.tictactoe.model.CellType.PlayerCellType
+import com.tictactoe.service.game.classic.exception.GameException
+import com.tictactoe.service.game.classic.exception.GameException.{
   CellAlreadyOccupiedException,
-  GameException,
   PositionOutboundException
 }
-import com.tictactoe.service.game.classic.model.CellType.PlayerCellType
+import com.tictactoe.service.game.classic.model.GameRules
 import com.tictactoe.service.game.classic.model.GameState.{ActiveGame, FinishedGame, TurnNumber}
-import com.tictactoe.service.game.classic.model.{CellType, GameRules}
 
 object PureCompiler {
 

@@ -1,14 +1,23 @@
 package com.tictactoe
 
 import cats.ApplicativeThrow
+import cats.effect.concurrent.Ref
 import cats.effect.{Blocker, ConcurrentEffect, Resource, Timer}
 import com.tictactoe.app.server.ServerModule
 import com.tictactoe.app.server.handler.TicTacToeMessageHandlerImpl
 import com.tictactoe.app.server.middleware.auth.SimpleAuthMiddleware
 import com.tictactoe.app.server.route.ApplicationRoutes
+import com.tictactoe.model.{Game, Session}
+import com.tictactoe.model.Game.GameId
+import com.tictactoe.model.Session.SessionId
 import com.tictactoe.service.config.PureConfigReader
+import com.tictactoe.service.game.GameServiceImpl
 import com.tictactoe.service.logging.LogOf
+import com.tictactoe.service.notification.NotificationServiceImpl
 import com.tictactoe.service.pingpong.SimplePingPongService
+import com.tictactoe.service.session.SessionServiceImpl
+import com.tictactoe.storage.game.LocalGameStorage
+import com.tictactoe.storage.session.LocalSessionStorage
 import pureconfig.ConfigSource
 
 import java.util.concurrent.Executors
@@ -29,16 +38,31 @@ object ApplicationRunner {
         Executors.newCachedThreadPool()
       )
     )
+    gameService <- {
+      for {
+        gameLocalStorage <- Resource.eval(Ref.of[F, Map[GameId, Ref[F, Game]]](Map.empty))
+        gameStorage = LocalGameStorage(gameLocalStorage)
+      } yield GameServiceImpl(gameStorage)
+    }
+    sessionService <- {
+      for {
+        sessionLocalStorage <- Resource.eval(Ref.of[F, Map[SessionId, Session]](Map.empty))
+        sessionStorage = LocalSessionStorage(sessionLocalStorage)
+      } yield SessionServiceImpl(sessionStorage)
+    }
+    notificationService = NotificationServiceImpl(sessionService, gameService)
     applicationRoutes = {
 
       val pingPongService = SimplePingPongService()
-      val ticTacToeMessageHandler = TicTacToeMessageHandlerImpl(pingPongService)
+      val ticTacToeMessageHandler =
+        TicTacToeMessageHandlerImpl(pingPongService, gameService, notificationService)
 
       val internalAuthMiddleware = SimpleAuthMiddleware()
 
       ApplicationRoutes(
         internalAuthMiddleware,
         ticTacToeMessageHandler,
+        sessionService,
         appConfig.server.timeout.idleTimeout
       )
     }

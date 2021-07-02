@@ -1,5 +1,6 @@
 package com.tictactoe.service.game.classic.model
 
+import cats.Show
 import com.tictactoe.service.game.classic.model.GameRules.{ColumnCount, RowCount, WinningCombinationLength}
 
 final case class GameRules(
@@ -15,6 +16,12 @@ final case class GameRules(
 }
 
 object GameRules {
+
+  implicit val show: Show[GameRules] =
+    gameRules =>
+      s"Game rules[Column count - ${gameRules.columnCount.value};" +
+        s" Row count - ${gameRules.rowCount.value};" +
+        s" Winning combination length - ${gameRules.winningCombinationLength.value}"
 
   final case class RowCount(value: Int) extends AnyVal
 

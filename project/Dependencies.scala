@@ -76,8 +76,18 @@ object Dependencies {
     }
   }
 
+  object ScalaTest {
+
+    val libraries: Seq[ModuleID] = {
+
+      val scalaTest = "org.scalatest" %% "scalatest" % "3.3.0-SNAP3"
+      val mockito = "org.mockito" %% "mockito-scala-scalatest" % "1.16.37"
+
+      Seq(scalaTest, mockito)
+        .map(_ % Test)
+    }
+  }
+
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.16.0"
   val scalaUuid = "io.jvm.uuid" %% "scala-uuid" % "0.3.1"
-  val scalaTest = "org.scalatest" %% "scalatest" % "3.3.0-SNAP3" % Test
-  val mockito = "org.mockito" %% "mockito-scala-scalatest" % "1.16.37" % Test
 }

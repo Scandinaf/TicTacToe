@@ -1,10 +1,12 @@
 package com.tictactoe.model
 
+import cats.Show
+import com.tictactoe.exception.AppException.{ErrorCode, ParameterKey, PrettyMessage}
+import com.tictactoe.model.CellType.PlayerCellType
 import com.tictactoe.model.Game.GameId
-import com.tictactoe.model.Message.OutgoingMessage.Error.{ErrorType, Reason}
+import com.tictactoe.model.Message.OutgoingMessage.GameFinished.WinnerInfo
 import com.tictactoe.model.Message.UUID
-import com.tictactoe.service.game.classic.model.Position
-import enumeratum._
+import com.tictactoe.service.game.classic.model.GameState.WinningCombination
 
 sealed trait Message {
 
@@ -38,35 +40,48 @@ object Message {
 
     final case class Pong(messageId: Option[UUID]) extends OutgoingMessage
 
-    final case class ClassicGameCreated(gameId: GameId, messageId: Option[UUID]) extends OutgoingMessage
+    final case class ClassicGameCreated(
+      gameId: GameId,
+      messageId: Option[UUID],
+      cellType: PlayerCellType
+    ) extends OutgoingMessage
 
-    final case class JoinedGame(messageId: Option[UUID], gameId: GameId) extends OutgoingMessage
+    final case class PlayerJoinedToGame(
+      messageId: Option[UUID],
+      gameId: GameId,
+      cellType: PlayerCellType
+    ) extends OutgoingMessage
 
-    final case class MadeTurn(
+    final case class TurnResult(
       messageId: Option[UUID],
       gameId: GameId,
       position: Position
     ) extends OutgoingMessage
 
+    final case class GameFinished(
+      messageId: Option[UUID],
+      gameId: GameId,
+      position: Position,
+      winnerInfo: Option[WinnerInfo]
+    ) extends OutgoingMessage
+
+    object GameFinished {
+
+      final case class WinnerInfo(cellType: PlayerCellType, winningCombination: WinningCombination)
+    }
+
     final case class Error(
-      errorType: ErrorType,
-      reason: Reason,
-      messageId: Option[UUID]
+      messageId: Option[UUID],
+      prettyMessage: PrettyMessage,
+      parameters: Map[ParameterKey, String],
+      errorCode: ErrorCode
     ) extends OutgoingMessage
 
     object Error {
 
-      final case class Reason(value: String) extends AnyVal
-
-      sealed trait ErrorType extends EnumEntry
-      object ErrorType extends Enum[ErrorType] with CirceEnum[ErrorType] {
-
-        final case object TransmittedDataError extends ErrorType
-        final case object InternalError extends ErrorType
-        final case object GameError extends ErrorType
-
-        val values: IndexedSeq[ErrorType] = findValues
-      }
+      implicit val show: Show[OutgoingMessage.Error] =
+        error =>
+          s"Pretty message - ${error.prettyMessage.value}; MessageId - ${error.messageId}"
     }
   }
 }

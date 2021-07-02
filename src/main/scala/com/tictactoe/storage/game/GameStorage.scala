@@ -1,13 +1,14 @@
 package com.tictactoe.storage.game
 
+import cats.data.OptionT
 import com.tictactoe.model.Game
 import com.tictactoe.model.Game.GameId
 
-trait GameStorage[F[_], T <: Game] {
+trait GameStorage[F[_]] {
 
-  def put(game: T): F[Unit]
+  def put(game: Game): F[Unit]
 
-  def get(gameId: GameId): F[Option[T]]
+  def get(gameId: GameId): OptionT[F, Game]
 
   def delete(gameId: GameId): F[Unit]
 }

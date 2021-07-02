@@ -19,10 +19,9 @@ lazy val root = project
         Circe.libraries ++
         Enumeratum.libraries ++
         Logging.libraries ++
+        ScalaTest.libraries ++
         Seq(
           pureConfig,
-          scalaUuid,
-          scalaTest,
-          mockito
+          scalaUuid
         )
   )

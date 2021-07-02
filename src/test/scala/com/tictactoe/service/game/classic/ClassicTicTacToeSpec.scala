@@ -1,21 +1,23 @@
 package com.tictactoe.service.game.classic
 
 import cats.Id
-import com.tictactoe.service.game.classic.exception.{
+import cats.data.EitherT
+import cats.syntax.either._
+import cats.syntax.option._
+import com.tictactoe.model.CellType.EmptyCell
+import com.tictactoe.model.CellType.PlayerCellType.{TacCell, TicCell}
+import com.tictactoe.model.Position
+import com.tictactoe.model.Position.{Column, Row}
+import com.tictactoe.service.game.classic.exception.GameException.{
   CellAlreadyOccupiedException,
   GameAlreadyFinishedException,
   PositionOutboundException
 }
+import com.tictactoe.service.game.classic.model.GameRules
 import com.tictactoe.service.game.classic.model.GameRules.{ColumnCount, RowCount, WinningCombinationLength}
-import com.tictactoe.service.game.classic.model.{GameRules, Position}
-import com.tictactoe.service.game.classic.model.Position.{Column, Row}
+import com.tictactoe.service.game.classic.model.GameState.{FinishedGame, TurnNumber}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import cats.syntax.either._
-import cats.syntax.option._
-import com.tictactoe.service.game.classic.model.CellType.EmptyCell
-import com.tictactoe.service.game.classic.model.CellType.PlayerCellType.{TacCell, TicCell}
-import com.tictactoe.service.game.classic.model.GameState.{FinishedGame, TurnNumber}
 
 class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
 
@@ -28,16 +30,17 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
     val inboundPosition: Position = Position(column = Column(-5), row = Row(53))
 
     classicTicTacToe.makeTurn(inboundPosition) shouldBe
-      PositionOutboundException(inboundPosition, gameRules).asLeft
+      EitherT.fromEither[Id](PositionOutboundException(inboundPosition, gameRules).asLeft)
   }
 
   it should "throw CellAlreadyOccupiedException" in new Scope {
     val position: Position = Position(column = Column(1), row = Row(1))
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(position)
       classicTicTacToe <- classicTicTacToe.makeTurn(position)
-    } yield classicTicTacToe) shouldBe CellAlreadyOccupiedException(position).asLeft
+      _ = classicTicTacToe shouldBe CellAlreadyOccupiedException(position).asLeft
+    } yield ()
   }
 
   it should "throw GameAlreadyFinishedException" in new Scope {
@@ -56,14 +59,16 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       ).some
     )
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(3)))
+      _ = classicTicTacToe.state shouldBe gameState
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(3)))
-    } yield classicTicTacToe) shouldBe GameAlreadyFinishedException(gameState).asLeft
+      _ = classicTicTacToe shouldBe GameAlreadyFinishedException.asLeft
+    } yield ()
   }
 
   it should "correctly handle the draw" in new Scope {
@@ -78,7 +83,7 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       winningCombination = None
     )
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(2)))
@@ -88,7 +93,8 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(3)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(2)))
-    } yield classicTicTacToe.state) shouldBe gameState.asRight
+      _ = classicTicTacToe.state shouldBe gameState
+    } yield ()
   }
 
   it should "correctly handle the win #1" in new Scope {
@@ -107,14 +113,15 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       ).some
     )
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(3)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(3)))
-    } yield classicTicTacToe.state) shouldBe gameState.asRight
+      _ = classicTicTacToe.state shouldBe gameState
+    } yield ()
   }
 
   it should "correctly handle the win #2" in new Scope {
@@ -133,13 +140,14 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       ).some
     )
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(3)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(3)))
-    } yield classicTicTacToe.state) shouldBe gameState.asRight
+      _ = classicTicTacToe.state shouldBe gameState
+    } yield ()
   }
 
   it should "correctly handle the win #3" in new Scope {
@@ -158,14 +166,15 @@ class ClassicTicTacToeSpec extends AnyFlatSpec with Matchers {
       ).some
     )
 
-    (for {
+    for {
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(3), row = Row(1)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(2)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(2), row = Row(3)))
       classicTicTacToe <- classicTicTacToe.makeTurn(Position(column = Column(1), row = Row(3)))
-    } yield classicTicTacToe.state) shouldBe gameState.asRight
+      _ = classicTicTacToe.state shouldBe gameState
+    } yield ()
   }
 
   trait Scope {

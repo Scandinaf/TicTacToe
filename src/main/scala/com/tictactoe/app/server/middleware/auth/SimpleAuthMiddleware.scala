@@ -6,7 +6,6 @@ import cats.syntax.either._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{Applicative, ApplicativeThrow}
-import com.tictactoe.app.CompanionOps._
 import com.tictactoe.app.server.middleware.auth.SimpleAuthMiddleware.HeaderName
 import com.tictactoe.model.User
 import com.tictactoe.model.User.{SimpleUser, UserId}
@@ -16,6 +15,7 @@ import org.http4s.server.AuthMiddleware
 import org.http4s.syntax.string._
 import org.http4s.util.CaseInsensitiveString
 import org.http4s.{ContextRoutes, Request, Response, Status}
+import com.tictactoe.app.server.CompanionOps._
 
 class SimpleAuthMiddleware[F[_] : Async : LogOf] extends InternalAuthMiddleware[F] {
 

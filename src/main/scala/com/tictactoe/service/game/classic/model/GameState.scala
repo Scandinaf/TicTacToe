@@ -1,8 +1,12 @@
 package com.tictactoe.service.game.classic.model
 
-import com.tictactoe.service.game.classic.model.CellType.PlayerCellType
+import com.tictactoe.model.CellType.PlayerCellType
+import com.tictactoe.model.{CellType, Position}
 
-sealed trait GameState
+sealed trait GameState {
+
+  def turnType: PlayerCellType
+}
 
 object GameState {
 
