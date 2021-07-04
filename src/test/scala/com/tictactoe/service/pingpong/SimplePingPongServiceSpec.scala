@@ -11,14 +11,14 @@ import org.scalatest.matchers.should.Matchers
 class SimplePingPongServiceSpec extends AnyFlatSpec with Matchers {
 
   "SimplePingPongService" should "correctly react on Pong" in new Scope {
-    val messageId = UUID("1234-1234-1234")
-    val ping = Ping(messageId.some)
-    val result = Pong(messageId.some)
+    val messageId: UUID = UUID("1234-1234-1234")
+    val ping: Ping = Ping(messageId.some)
+    val result: Pong = Pong(messageId.some)
     pingPongService.pong(ping).unsafeRunSync() shouldBe result
   }
 
   trait Scope {
 
-    val pingPongService = SimplePingPongService[IO]()
+    val pingPongService: SimplePingPongService[IO] = SimplePingPongService[IO]()
   }
 }

@@ -11,7 +11,7 @@ import com.tictactoe.model.User.{SimpleUser, UserId}
 import com.tictactoe.service.session.exception.SessionServiceException.SessionAlreadyExistsException
 import com.tictactoe.storage.session.LocalSessionStorage
 import fs2.concurrent.Queue
-import org.mockito.MockitoSugar
+import org.mockito.scalatest.MockitoSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
