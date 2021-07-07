@@ -1,5 +1,6 @@
 package com.tictactoe.app.server.handler
 
+import cats.ApplicativeThrow
 import cats.effect.Concurrent
 import cats.effect.concurrent.Deferred
 import cats.syntax.flatMap._
@@ -7,7 +8,6 @@ import cats.syntax.functor._
 import com.tictactoe.model.CellType.PlayerCellType
 import com.tictactoe.model.Game.ClassicGame.{GameStatus, PlayerInfo}
 import com.tictactoe.model.Game.{ClassicGame, GameId}
-import com.tictactoe.model.Message
 import com.tictactoe.model.Message.IncomingMessage.{CreateClassicGame, JoinGame, MakeTurn, Ping}
 import com.tictactoe.model.Message.OutgoingMessage
 import com.tictactoe.model.Message.OutgoingMessage.GameFinished.WinnerInfo
@@ -18,9 +18,11 @@ import com.tictactoe.model.Message.OutgoingMessage.{
   TurnResult
 }
 import com.tictactoe.model.Session.SessionId
+import com.tictactoe.model.{GameInfo, Message}
 import com.tictactoe.service.game.GameService
 import com.tictactoe.service.game.classic.ClassicTicTacToe
 import com.tictactoe.service.game.classic.model.GameState
+import com.tictactoe.service.gamelog.GameLog
 import com.tictactoe.service.notification.NotificationService
 import com.tictactoe.service.pingpong.PingPongService
 import io.jvm.uuid._
@@ -28,7 +30,8 @@ import io.jvm.uuid._
 class TicTacToeMessageHandlerImpl[F[+_] : Concurrent](
   pingPongService: PingPongService[F],
   classicGameService: GameService[F],
-  notificationService: NotificationService[F]
+  notificationService: NotificationService[F],
+  gameLog: GameLog[F]
 ) extends TicTacToeMessageHandler[F] {
 
   override def handle(
@@ -83,6 +86,11 @@ class TicTacToeMessageHandlerImpl[F[+_] : Concurrent](
               }
           }
           _ <- notificationService.notify(gameId, outgoingMessage)
+          _ <- Concurrent[F].start(
+            ApplicativeThrow[F].attempt(
+              gameLog.logGameInfo(GameInfo(gameId, incomingMessage, outgoingMessage))
+            )
+          )
         } yield outgoingMessage
     }
 }
@@ -92,7 +100,8 @@ object TicTacToeMessageHandlerImpl {
   def apply[F[+_] : Concurrent](
     pingPongService: PingPongService[F],
     classicGameService: GameService[F],
-    notificationService: NotificationService[F]
+    notificationService: NotificationService[F],
+    gameLog: GameLog[F]
   ): TicTacToeMessageHandlerImpl[F] =
-    new TicTacToeMessageHandlerImpl(pingPongService, classicGameService, notificationService)
+    new TicTacToeMessageHandlerImpl(pingPongService, classicGameService, notificationService, gameLog)
 }

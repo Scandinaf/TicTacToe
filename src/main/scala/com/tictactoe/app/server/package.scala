@@ -1,23 +1,22 @@
 package com.tictactoe.app
 
+import com.tictactoe.exception.AppException.{ErrorCode, ParameterKey, PrettyMessage}
 import com.tictactoe.model.Game.GameId
+import com.tictactoe.model.Message.OutgoingMessage.GameFinished.WinnerInfo
 import com.tictactoe.model.Message.{IncomingMessage, OutgoingMessage, UUID}
 import com.tictactoe.model.Position
 import com.tictactoe.model.Position.{Column, Row}
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.semiauto._
-import io.circe.{Codec, Decoder, Encoder, KeyEncoder}
+import io.circe.{Codec, Encoder, KeyEncoder}
 import org.http4s.{Headers, Request}
-import com.tictactoe.model.CellType.PlayerCellType.circeEncoder
-import com.tictactoe.exception.AppException.{ErrorCode, ParameterKey, PrettyMessage}
-import com.tictactoe.model.Message.OutgoingMessage.GameFinished.WinnerInfo
 
 package object server {
 
   object JsonOps {
 
     implicit val (
-      incomingMessageDecoder: Decoder[IncomingMessage],
+      incomingMessageDecoder: Codec[IncomingMessage],
       outgoingMessageEncoder: Encoder[OutgoingMessage]
     ) = {
       val discriminatorFieldName = "type"
@@ -38,7 +37,7 @@ package object server {
       implicit val parameterKeyEncoder: KeyEncoder[ParameterKey] =
         KeyEncoder.encodeKeyString.contramap(_.entryName)
 
-      (deriveConfiguredDecoder: Decoder[IncomingMessage], deriveConfiguredEncoder: Encoder[OutgoingMessage])
+      (deriveConfiguredCodec: Codec[IncomingMessage], deriveConfiguredEncoder: Encoder[OutgoingMessage])
     }
   }
 

@@ -76,6 +76,20 @@ object Dependencies {
     }
   }
 
+  object Doobie {
+
+    val libraries: Seq[ModuleID] = {
+
+      val version = "0.12.1"
+      val core = "org.tpolecat" %% "doobie-core" % version
+      val postgresql = "org.tpolecat" %% "doobie-postgres" % version
+      val hikari = "org.tpolecat" %% "doobie-hikari" % version
+      val doobieTest = "org.tpolecat" %% "doobie-scalatest" % version % "test"
+
+      Seq(core, postgresql, hikari, doobieTest)
+    }
+  }
+
   object ScalaTest {
 
     val libraries: Seq[ModuleID] = {

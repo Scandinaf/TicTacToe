@@ -18,6 +18,7 @@ lazy val root = project
         Fs2.libraries ++
         Circe.libraries ++
         Enumeratum.libraries ++
+        Doobie.libraries ++
         Logging.libraries ++
         ScalaTest.libraries ++
         Seq(
