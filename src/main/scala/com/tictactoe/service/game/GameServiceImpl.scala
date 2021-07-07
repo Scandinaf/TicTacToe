@@ -1,11 +1,9 @@
 package com.tictactoe.service.game
 
 import cats.data.{EitherT, OptionT}
-import cats.effect.Concurrent
-import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
-import cats.{Applicative, ApplicativeThrow}
+import cats.{Applicative, ApplicativeThrow, FlatMap, MonadThrow}
 import com.tictactoe.model.CellType.PlayerCellType
 import com.tictactoe.model.Game.ClassicGame.GameStatus.{AwaitingConnection, Finished}
 import com.tictactoe.model.Game.ClassicGame.{GameStatus, PlayerInfo}
@@ -18,7 +16,7 @@ import com.tictactoe.service.game.exception.GameServiceException
 import com.tictactoe.service.game.exception.GameServiceException._
 import com.tictactoe.storage.game.GameStorage
 
-class GameServiceImpl[F[_] : Concurrent](gameStorage: GameStorage[F])
+class GameServiceImpl[F[_] : MonadThrow](gameStorage: GameStorage[F])
   extends GameService[F] {
 
   override def createGame(game: Game): EitherT[F, GameAlreadyExistsException, Unit] =
@@ -43,9 +41,11 @@ class GameServiceImpl[F[_] : Concurrent](gameStorage: GameStorage[F])
                   sessionId = sessionId,
                   cellType = playerCellType
                 )
-              classicGame.player2.complete(playerInfo) *>
+
+              FlatMap[F].flatMap(classicGame.player2.complete(playerInfo)) { _ =>
                 gameStorage.put(classicGame.copy(status = GameStatus.Running))
                   .as(playerCellType.asRight[GameServiceException])
+              }
             } {
               case _ =>
                 UnableConnectToGameException(gameId).asLeft
@@ -109,6 +109,6 @@ class GameServiceImpl[F[_] : Concurrent](gameStorage: GameStorage[F])
 
 object GameServiceImpl {
 
-  def apply[F[_] : Concurrent](gameStorage: GameStorage[F]): GameServiceImpl[F] =
+  def apply[F[_] : MonadThrow](gameStorage: GameStorage[F]): GameServiceImpl[F] =
     new GameServiceImpl(gameStorage)
 }

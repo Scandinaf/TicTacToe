@@ -8,6 +8,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
 import cats.{Applicative, ApplicativeThrow}
+import com.tictactoe.app.server.JsonOps._
 import com.tictactoe.app.server.handler.TicTacToeMessageHandler
 import com.tictactoe.exception.AppException
 import com.tictactoe.exception.AppException.{ErrorCode, PrettyMessage}
@@ -29,7 +30,6 @@ import org.http4s.dsl.io._
 import org.http4s.server.websocket.WebSocketBuilder
 import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame.{Close, Text}
-import com.tictactoe.app.server.JsonOps._
 
 private[route] object TicTacToeRoutes {
 

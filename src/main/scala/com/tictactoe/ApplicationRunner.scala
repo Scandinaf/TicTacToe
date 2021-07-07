@@ -1,6 +1,6 @@
 package com.tictactoe
 
-import cats.ApplicativeThrow
+import cats.{ApplicativeThrow, Parallel}
 import cats.effect.concurrent.Ref
 import cats.effect.{Blocker, ConcurrentEffect, Resource, Timer}
 import com.tictactoe.app.server.ServerModule
@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionContext
 
 object ApplicationRunner {
 
-  def run[F[+_] : Timer : ConcurrentEffect](): Resource[F, Unit] = for {
+  def run[F[+_] : Timer : ConcurrentEffect : Parallel](): Resource[F, Unit] = for {
     implicit0(logOf: LogOf[F]) <- Resource.eval(LogOf.slf4j[F])
     logger <- Resource.eval(logOf(Main.getClass))
 
